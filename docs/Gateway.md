@@ -71,7 +71,7 @@ And for registration:
 ``` 
 Yes, `tag` can be 1-4 alphanumeric characters.
 
-If registered or logged in was successful, you will get a [`ready`](#events-ready) event with the user's data.  
+If registered or logged in was successful, you will get a [`ready`](#ready) event with the user's data.  
 
 # Events
 All events, sent and received, should be camelCase.  
