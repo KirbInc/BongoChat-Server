@@ -16,20 +16,18 @@ let zlib = require("fast-zlib");
 let deflate = zlib("deflate");
 let inflate = zlib("inflate")
 */
-
+let pretokens = []
+let sessions = []
 console.log("Bongo Chat Server is up!")
 wss.on("connection", function(ws, request) {
 	console.log("A client has connected.")
-	ws.isAlive = true
-	ws.on("pong", () => {
-		this.isAlive = true
-		console.log("ponged")
-	})
 
 	ws.on("message", eventHandle)
 	.on("welcome", () => {
 		console.log("Welcomed a client.")
-		ws.send(JSON.stringify({ event: "hello", payload: { pretoken: crypto.randomBytes(16).toString("hex") } }))
+		ws.pretoken = crypto.randomBytes(12).toString("hex")
+		pretokens.push(ws.pretoken)
+		ws.send(JSON.stringify({ event: "hello", payload: { pretoken: ws.pretoken } }))
 	})
 	.on("identify", (p) => {
 		if(!p.pretoken) return ws.send(JSON.stringify({ code: 2, event: "invalid", payload: { reason: "pretokenMissing", message: "I sent you a pretoken, but you didn't send it back. Send the pretoken." } }))
@@ -52,18 +50,35 @@ wss.on("connection", function(ws, request) {
 					message: "You didn't send enough (or any) data."
 				}
 			}))
-
-			User.register(accountName, username, tag, password).then(id => ws.send(JSON.stringify({
-				event: "ready", 
+			
+			if(!tag.match(/^[a-zA-Z0-9\-_]/g) || tag.length > 4) return ws.send(JSON.stringify({
+				code: 2,
+				event: "invalid",
 				payload: {
-					user: {
-						sessionID: crypto.randomBytes(16).toString("hex"),
-						id: id,
-						username,
-						tag
-					}
+					reason: "invalidTag",
+					message: "A tag must be 1-4 alphanumeric characters."
 				}
-			})))
+			}))
+
+			User.register(accountName, username, tag, password).then(id => {
+				ws.sessionID = crypto.randomBytes(24).toString("hex")
+				sessions.push({sessionID: ws.sessionID, ...res.user})
+				
+				ws.send(JSON.stringify({
+					event: "ready", 
+					payload: {
+						user: {
+							sessionID: ws.sessionID,
+							id: parseInt(id),
+							username,
+							tag
+						}
+					}
+				}))
+
+				let pretokenIndex = pretokens.findIndex(t => t == ws.pretoken)
+				pretokens.splice(pretokenIndex, 1)[0]
+			})
 		} else {
 			let { accountName, password } = p
 			if (!accountName || !password) return ws.send(JSON.stringify({
@@ -84,15 +99,21 @@ wss.on("connection", function(ws, request) {
 				}))
 
 				if(res.matched) {
+					ws.sessionID = crypto.randomBytes(24).toString("hex")
+					sessions.push({sessionID: ws.sessionID, ...res.user})
+
 					ws.send(JSON.stringify({
 						event: "ready", 
 						payload: {
 							user: {
-								sessionID: crypto.randomBytes(16).toString("hex"),
+								sessionID: ws.sessionID,
 								...res.user
 							}
 						}
 					}))
+
+					let pretokenIndex = pretokens.findIndex(t => t == ws.pretoken)
+					pretokens.splice(pretokenIndex, 1)[0]
 				} else {
 					ws.send(JSON.stringify({
 						code: 3,
@@ -131,6 +152,16 @@ wss.on("connection", function(ws, request) {
 			break;
 		}
 	})
+
+	ws.on("close", (e) => {
+		let sessionIndex = sessions.findIndex(s => s.sessionID == ws.sessionID)
+		let pretokenIndex = pretokens.findIndex(t => t == ws.pretoken)
+		if(pretokenIndex == -1) return;
+		pretokens.splice(pretokenIndex, 1)[0]
+		if (sessionIndex == -1) return console.log("A user has disconnected.")
+		let session = sessions.splice(sessionIndex, 1)[0]
+		console.log(`${session.username}#${session.tag} has disconnected.`)
+	})
 })
 
 const userTable = UserDB.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'users';").get()
@@ -148,7 +179,8 @@ function eventHandle(data) {
 		const { event, payload } = JSON.parse(data)
 		if(!event || !payload) return this.emit("invalid", {code: 1})
 		this.emit(event, payload)
-	} catch {
+	} catch(e) {
+		console.log(e)
 		this.emit("invalid", {code: 0})
 	}
 }

@@ -1,6 +1,6 @@
 {
   "name": "bongochat-server",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "The server for Bongo Chat.",
   "main": "index.js",
   "scripts": {
@@ -11,7 +11,7 @@
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
-    "url": "h"
+    "url": "https://github.com/Terminalfreaks/BongoChat-Server"
   },
   "dependencies": {
     "argon2": "^0.26.2",

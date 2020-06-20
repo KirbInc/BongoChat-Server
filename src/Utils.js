@@ -1,3 +1,3 @@
 module.exports = {
-	userHandle: require("./structures/userHandle.js")
+	userHandle: require("./utils/userHandle.js")
 }

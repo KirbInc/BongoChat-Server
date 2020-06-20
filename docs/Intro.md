@@ -1,0 +1,1 @@
+Looks like you've decided to read the Bongo Chat docs! Welcome, I hope you know you've made a great choice. Currently Bongo Chat is in very early development, but you can still look at the [gateway docs](Gateway.md) to figure out how to get through the gate to start sending messages.
