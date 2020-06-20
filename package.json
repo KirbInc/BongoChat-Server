@@ -1,0 +1,24 @@
+{
+  "name": "bongochat-server",
+  "version": "0.0.1",
+  "description": "The server for Bongo Chat.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Terminalfreaks",
+  "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "h"
+  },
+  "dependencies": {
+    "argon2": "^0.26.2",
+    "bcrypt": "^5.0.0",
+    "better-sqlite3": "^7.1.0",
+    "fast-zlib": "^1.0.2",
+    "flakeid": "^1.0.0",
+    "ws": "^7.3.0"
+  }
+}
