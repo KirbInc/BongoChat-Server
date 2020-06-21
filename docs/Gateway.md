@@ -109,7 +109,6 @@ Sends user information.
 | user        | object | user's information                         |  
 
 #### Ready User Information
-Sends user information.
 | Field       | Type    | Description                                |
 |-------------|---------|--------------------------------------------|
 | sessionID   | string  | session id                                 |  

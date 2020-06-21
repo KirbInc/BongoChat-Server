@@ -37,7 +37,14 @@ wss.on("connection", function(ws, request) {
 		ws.send(JSON.stringify({ event: "hello", payload: { pretoken: ws.pretoken } }))
 	})
 	.on("identify", (p) => {
-		if(!p.pretoken) return ws.send(JSON.stringify({ code: 2, event: "invalid", payload: { reason: "pretokenMissing", message: "I sent you a pretoken, but you didn't send it back. Send the pretoken." } }))
+		if(!p.pretoken || !pretokens.find(c => c.pretoken === p.pretoken)) return ws.send(JSON.stringify({
+			code: 2,
+			event: "invalid",
+			payload: {
+				reason: "invalidPretoken",
+				message: "You didn't send back a pretoken, or it wasn't a valid one."
+			}
+		}))
 		if(p.register) {
 			let { accountName, username, tag, password } = p
 			if (!accountName || !username || !tag || !password) return ws.send(JSON.stringify({
@@ -160,7 +167,7 @@ wss.on("connection", function(ws, request) {
 			if(c.readyState === WebSocket.OPEN) c.send(JSON.stringify({
 				event: "messageCreate",
 				payload: {
-					content: "hi",
+					content: p.content,
 					id,
 					username: session.username,
 					tag: session.tag
