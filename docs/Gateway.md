@@ -4,7 +4,7 @@ To actually send messages (after you [identify](#identifying)), see the [Resourc
 # Data Structure
 | Field   | Type           | Description           |
 |---------|----------------|-----------------------|
-| code *  | integer        | code for the payload  |
+| code *  | integer        | code for the event    |
 | event   | string         | the name of the event |
 | payload | any json value | event data            |  
 
@@ -74,11 +74,21 @@ Yes, `tag` can be 1-4 alphanumeric characters.
 
 If registered or logged in was successful, you will get a [`ready`](#ready) event with the user's data.  
 
+# Errors, Codes and Request Types
+Whenever **you** (the client) do something that doesn't make sense or isn't valid (say, you don't send payload data, or the required data for a specific event) you will get an `invalid` event sent back.  
+
+You can see details of the event [here.](#invalid)  
+
+## Request Types
+Whenever you send an event to get data, it may need a payload `type` to say what type of data you want to receive.  
+Each type meaning can be based on the event, so look at them each to find out what their types mean.  
+
 # Events
 All events, sent and received, should be camelCase.  
 
 ### Welcome
 Used to get `hello` from the server, saying you want to initialize identification.  
+
 
 ### Hello
 Confirms the server heard your request to be `welcome`d and sends the pretoken.  
@@ -116,5 +126,27 @@ Sends user information.
 | username    | string  | user's  username                           |
 | tag         | string  | user's tag                                 |  
 
+### Invalid
+Sent when the client sends invalid, incorrect or insufficient data.  
+
+#### Example Invalid 
+```json
+{
+	"code": 1,
+	"event": "invalid",
+	"payload": {
+		"reason": "insufficientData",
+		"message": "You didn't give me the event, or any event/payload data."
+	}
+}
+```  
+
+#### Invalid Structure
+TODOC  
+
+#### Invalid Codes
+TODOC
+
 ### Message Create
 A message sent in the server. The payload is a [`message create`](Resources/Message.md#message-create-structure) structure.  
+

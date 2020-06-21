@@ -29,12 +29,12 @@ class userHandle {
 
 	login(accountName, password) {
 		return new Promise(async (resolve, reject) => {
-			const user = this.Database.prepare("SELECT * FROM users WHERE accountName=?;").get(accountName)
-			if (!user) return resolve({err: {
-				reason: "userNotExists",
-				message: "This user does not exist."
-			}})
 			try {
+				const user = this.Database.prepare("SELECT * FROM users WHERE accountName=?;").get(accountName)
+				if (!user) return resolve({err: {
+					reason: "userNotExists",
+					message: "This user does not exist."
+				}})
 				if (await argon2.verify(user.passwordHash, password)) {
 					const { ["passwordHash"]: _, ["accountName"]: __, ..._user } = user
 				    resolve({matched: true, user: _user})
@@ -49,10 +49,31 @@ class userHandle {
 	register(accountName, username, tag, password) {
 		return new Promise(async (resolve, reject) => {
 			try {
+				const user = this.Database.prepare("SELECT * FROM users WHERE accountName=?;").get(accountName)
+				if (user) return resolve({err: {
+					reason: "userExists",
+					message: "A user with this account name already exists."
+				}})
 				const hash = await argon2.hash(password)
 				const id = flake.gen()
 				this.Database.prepare("INSERT INTO users (id, accountName, username, tag, passwordHash) VALUES (?, ?, ?, ?, ?);").run(id, accountName, username, tag, hash)
 				resolve(id)
+			} catch (err) {
+				reject(err)
+			}
+		})
+	}
+
+	fetchUser(id) {
+		return new Promise(async (resolve, reject) => {
+			try {
+				const user = this.Database.prepare("SELECT * FROM users WHERE id=?;").get(id)
+				if (!user) return resolve({err: {
+					reason: "userNotExists",
+					message: "This user does not exist."
+				}})
+				const { ["passwordHash"]: _, ["accountName"]: __, ..._user } = user
+				resolve({..._user})
 			} catch (err) {
 				reject(err)
 			}

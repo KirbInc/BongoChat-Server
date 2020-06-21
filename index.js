@@ -96,6 +96,14 @@ wss.on("connection", function(ws, request) {
 			}))
 
 			User.register(accountName, username, tag, password).then(id => {
+				if(res.err) return ws.send(JSON.stringify({
+					code: 2,
+					event: "method",
+					payload: {
+						...res.err
+					}
+				}))
+
 				ws.sessionID = crypto.randomBytes(24).toString("hex")
 				sessions.push({sessionID: ws.sessionID, ...res.user})
 				
@@ -191,6 +199,7 @@ wss.on("connection", function(ws, request) {
 					content: p.content.trim(),
 					id,
 					author: {
+						id: session.id,
 						username: session.username,
 						tag: session.tag
 					},
@@ -199,6 +208,39 @@ wss.on("connection", function(ws, request) {
 				}
 			}))
 		})
+	})
+	.on("fetch", (p) => {
+		if(!p.type || typeof p.type !== "integer") return ws.send(JSON.stringify({
+			code: 4,
+			event: "invalid",
+			payload: {
+				reason: "invalidType",
+				message: "The client didn't provide the type of data to fetch, or it wasn't an integer."
+			}
+		}))
+		switch(p.type) {
+			case 0:
+				Utils.fetchUser(p.id).then(user => {
+					ws.send(JSON.stringify({
+						event: "fetch",
+						payload: {
+							user: ...user
+						}
+					}))
+				})
+			break;
+
+			default:
+				ws.send(JSON.stringify({
+					code: 4,
+					event: "invalid",
+					payload: {
+						reason: "notAType",
+						message: "The client provided a type that doesn't exist."
+					}
+				}))
+			break;
+		}
 	})
 	.on("invalid", (i) => {
 		switch(i.code) {
