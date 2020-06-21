@@ -1,18 +1,39 @@
+/*
+    Bongo Chat Server is the server software for Bongo Chat.
+    Copyright (C) 2020 Terminalfreaks
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 const WebSocket = require("ws")
 const fs = require("fs")
 const crypto = require("crypto")
-const FlakeId = require("flakeid")
+const http = require("http")
+const Flake = require("flakeid")
 const Database = require("better-sqlite3")
 const Utils = require("./src/Utils")
+const Config = require("./config.json")
 
 if (!fs.existsSync(`${__dirname}/Databases`)) fs.mkdirSync(`${__dirname}/Databases`)
 const UserDB = new Database("./Databases/BongoChat_Users.db")
 const User = new Utils.userHandle(UserDB)
+const server = http.createServer()
 const wss = new WebSocket.Server({
-	port: 8080,
-	clientTracking: true
+	clientTracking: true,
+	server
 })
-const flake = new FlakeId({
+const flake = new Flake({
 	timeOffset: (2020 - 1970) * 31536000 * 1000 + (31536000 * 400)
 })
 /*
@@ -37,7 +58,7 @@ wss.on("connection", function(ws, request) {
 		ws.send(JSON.stringify({ event: "hello", payload: { pretoken: ws.pretoken } }))
 	})
 	.on("identify", (p) => {
-		if(!p.pretoken || !pretokens.find(c => c.pretoken === p.pretoken)) return ws.send(JSON.stringify({
+		if(!p.pretoken || !pretokens.find(pretoken => pretoken === p.pretoken)) return ws.send(JSON.stringify({
 			code: 2,
 			event: "invalid",
 			payload: {
@@ -151,7 +172,7 @@ wss.on("connection", function(ws, request) {
 				message: "You didn't send your session ID, or a valid one."
 			}
 		}))
-		if(!p.content || typeof p.content !== "string") return ws.send(JSON.stringify({
+		if(!p.content || typeof p.content !== "string" || p.content.trim() === "") return ws.send(JSON.stringify({
 			code: 4,
 			event: "invalid",
 			payload: {
@@ -167,10 +188,14 @@ wss.on("connection", function(ws, request) {
 			if(c.readyState === WebSocket.OPEN) c.send(JSON.stringify({
 				event: "messageCreate",
 				payload: {
-					content: p.content,
+					content: p.content.trim(),
 					id,
-					username: session.username,
-					tag: session.tag
+					author: {
+						username: session.username,
+						tag: session.tag
+					},
+					timestamp: new Date(),
+					type: 1
 				}
 			}))
 		})
@@ -204,25 +229,25 @@ wss.on("connection", function(ws, request) {
 	ws.on("close", (e) => {
 		let sessionIndex = sessions.findIndex(s => s.sessionID == ws.sessionID)
 		let pretokenIndex = pretokens.findIndex(t => t == ws.pretoken)
-		if(pretokenIndex == -1) return;
-		pretokens.splice(pretokenIndex, 1)[0]
-		if (sessionIndex == -1) return console.log("A user has disconnected.")
+		if(pretokenIndex !== -1) pretokens.splice(pretokenIndex, 1)[0]
+		if (sessionIndex === -1) return console.log("A user has disconnected.")
 		let session = sessions.splice(sessionIndex, 1)[0]
 		console.log(`${session.username}#${session.tag} has disconnected.`)
 	})
 })
 
-const userTable = UserDB.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'users';").get()
+server.listen(Config.port, () => {
+	const userTable = UserDB.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'users';").get()
+	if (!userTable["count(*)"]) {
+		UserDB.prepare("CREATE TABLE users (id INTEGER PRIMARY KEY, accountName TEXT, username TEXT, tag TEXT, passwordHash TEXT);").run();
+		UserDB.prepare("CREATE UNIQUE INDEX idx_user_id ON users (id);").run()
+		UserDB.pragma("synchronous = 1")
+		UserDB.pragma("journal_mode = wal")
+		console.log("Created SQLite DB and Users table.")
+	}
 
-if (!userTable["count(*)"]) {
-	UserDB.prepare("CREATE TABLE users (id INTEGER PRIMARY KEY, accountName TEXT, username TEXT, tag TEXT, passwordHash TEXT);").run();
-	UserDB.prepare("CREATE UNIQUE INDEX idx_user_id ON users (id);").run()
-	UserDB.pragma("synchronous = 1")
-	UserDB.pragma("journal_mode = wal")
-	console.log("Created SQLite DB and Users table.")
-}
-
-console.log("Bongo Chat Server is up!")
+	console.log("Bongo Chat Server is up!")
+})
 
 function eventHandle(data) {
 	try {

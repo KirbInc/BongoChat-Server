@@ -1,6 +1,6 @@
 {
   "name": "bongochat-server",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "The server for Bongo Chat.",
   "main": "index.js",
   "scripts": {
@@ -15,7 +15,6 @@
   },
   "dependencies": {
     "argon2": "^0.26.2",
-    "bcrypt": "^5.0.0",
     "better-sqlite3": "^7.1.0",
     "fast-zlib": "^1.0.2",
     "flakeid": "^1.0.0",
