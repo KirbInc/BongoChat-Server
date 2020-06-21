@@ -1,5 +1,5 @@
 const argon2 = require("argon2")
-const FlakeId = require("flakeid");
+const FlakeId = require("flakeid")
 const flake = new FlakeId({
 	timeOffset: (2020 - 1970) * 31536000 * 1000 + (31536000 * 400)
 })

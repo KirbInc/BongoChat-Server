@@ -1,4 +1,5 @@
 So you're at the gate, wanting to know how to get in. Luckily, you have all this documentation to tell you how to properly connect to Bongo Chat to send and receive messages.  
+To actually send messages (after you [identify](#identifying)), see the [Resources page.](Resources.md)  
 
 # Data Structure
 | Field   | Type           | Description           |
@@ -114,4 +115,7 @@ Sends user information.
 | sessionID   | string  | session id                                 |  
 | id          | integer | snowflake id of the user                   |  
 | username    | string  | user's  username                           |
-| tag         | string  | user's tag                                 |
+| tag         | string  | user's tag                                 |  
+
+### Message Create
+A message sent in the server. The payload is a [`message create`](Resources/Message.md#message-create-structure) structure.  

@@ -1,13 +1,20 @@
 const WebSocket = require("ws")
 const fs = require("fs")
 const crypto = require("crypto")
+const FlakeId = require("flakeid")
 const Database = require("better-sqlite3")
 const Utils = require("./src/Utils")
 
 if (!fs.existsSync(`${__dirname}/Databases`)) fs.mkdirSync(`${__dirname}/Databases`)
 const UserDB = new Database("./Databases/BongoChat_Users.db")
 const User = new Utils.userHandle(UserDB)
-const wss = new WebSocket.Server({port: 8080})
+const wss = new WebSocket.Server({
+	port: 8080,
+	clientTracking: true
+})
+const flake = new FlakeId({
+	timeOffset: (2020 - 1970) * 31536000 * 1000 + (31536000 * 400)
+})
 /*
 	for use later....
 	
@@ -16,9 +23,9 @@ let zlib = require("fast-zlib");
 let deflate = zlib("deflate");
 let inflate = zlib("inflate")
 */
+
 let pretokens = []
 let sessions = []
-console.log("Bongo Chat Server is up!")
 wss.on("connection", function(ws, request) {
 	console.log("A client has connected.")
 
@@ -114,6 +121,7 @@ wss.on("connection", function(ws, request) {
 
 					let pretokenIndex = pretokens.findIndex(t => t == ws.pretoken)
 					pretokens.splice(pretokenIndex, 1)[0]
+					ws.pretoken = undefined
 				} else {
 					ws.send(JSON.stringify({
 						code: 3,
@@ -126,6 +134,39 @@ wss.on("connection", function(ws, request) {
 				}
 			})
 		}
+	})
+	.on("messageCreate", (p) => {
+		if(!p.sessionID || !sessions.find(c => c.sessionID === p.sessionID)) return ws.send(JSON.stringify({
+			code: 4,
+			event: "invalid",
+			payload: {
+				reason: "invalidSessionID",
+				message: "You didn't send your session ID, or a valid one."
+			}
+		}))
+		if(!p.content || typeof p.content !== "string") return ws.send(JSON.stringify({
+			code: 4,
+			event: "invalid",
+			payload: {
+				reason: "invalidContent",
+				message: "The message content has to be provided, and be a string."
+			}
+		}))
+
+		const session = sessions.find(c => c.sessionID === p.sessionID)
+		const id = flake.gen()
+		wss.clients.forEach(c => {
+			if(!c.sessionID) return;
+			if(c.readyState === WebSocket.OPEN) c.send(JSON.stringify({
+				event: "messageCreate",
+				payload: {
+					content: "hi",
+					id,
+					username: session.username,
+					tag: session.tag
+				}
+			}))
+		})
 	})
 	.on("invalid", (i) => {
 		switch(i.code) {
@@ -174,13 +215,15 @@ if (!userTable["count(*)"]) {
 	console.log("Created SQLite DB and Users table.")
 }
 
+console.log("Bongo Chat Server is up!")
+
 function eventHandle(data) {
 	try {
 		const { event, payload } = JSON.parse(data)
 		if(!event || !payload) return this.emit("invalid", {code: 1})
-		this.emit(event, payload)
+		return this.emit(event, payload)
 	} catch(e) {
 		console.log(e)
-		this.emit("invalid", {code: 0})
+		return this.emit("invalid", {code: 0})
 	}
 }
