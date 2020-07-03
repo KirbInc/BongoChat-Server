@@ -45,27 +45,24 @@ let deflate = zlib("deflate");
 let inflate = zlib("inflate")
 */
 
-let pretokens = []
 let sessions = []
-wss.on("connection", function(ws, request) {
+wss.on("connection", (ws) => {
 	console.log("A client has connected.")
 
+	// For the client to ensure they connected.
+	ws.send(JSON.stringify({
+		event: "welcome",
+		payload: {}
+	}))
+
+	// Turns everything into an emitted event.
+	// Makes everything easier to manage, and here we check if received data can be parsed,
+	// And has enough fields.
 	ws.on("message", eventHandle)
-	.on("welcome", () => {
-		console.log("Welcomed a client.")
-		ws.pretoken = crypto.randomBytes(12).toString("hex")
-		pretokens.push(ws.pretoken)
-		ws.send(JSON.stringify({ event: "hello", payload: { pretoken: ws.pretoken } }))
-	})
-	.on("identify", (p) => {
-		if(!p.pretoken || !pretokens.find(pretoken => pretoken === p.pretoken)) return ws.send(JSON.stringify({
-			code: 2,
-			event: "invalid",
-			payload: {
-				reason: "invalidPretoken",
-				message: "You didn't send back a pretoken, or it wasn't a valid one."
-			}
-		}))
+
+	// Identify: The client registers/logs in here.
+	ws.on("identify", (p) => {
+		// Registration portion.
 		if(p.register) {
 			let { accountName, username, tag, password } = p
 			if (!accountName || !username || !tag || !password) return ws.send(JSON.stringify({
@@ -118,11 +115,8 @@ wss.on("connection", function(ws, request) {
 						}
 					}
 				}))
-
-				let pretokenIndex = pretokens.findIndex(t => t == ws.pretoken)
-				pretokens.splice(pretokenIndex, 1)[0]
 			})
-		} else {
+		} else { // Login portion.
 			let { accountName, password } = p
 			if (!accountName || !password) return ws.send(JSON.stringify({
 				code: 3,
@@ -154,10 +148,6 @@ wss.on("connection", function(ws, request) {
 							}
 						}
 					}))
-
-					let pretokenIndex = pretokens.findIndex(t => t == ws.pretoken)
-					pretokens.splice(pretokenIndex, 1)[0]
-					ws.pretoken = undefined
 				} else {
 					ws.send(JSON.stringify({
 						code: 3,
@@ -171,7 +161,9 @@ wss.on("connection", function(ws, request) {
 			})
 		}
 	})
-	.on("messageCreate", (p) => {
+
+	// Message Create: When a message has been sent.
+	ws.on("messageCreate", (p) => {
 		if(!p.sessionID || !sessions.find(c => c.sessionID === p.sessionID)) return ws.send(JSON.stringify({
 			code: 4,
 			event: "invalid",
@@ -209,9 +201,11 @@ wss.on("connection", function(ws, request) {
 			}))
 		})
 	})
-	.on("fetch", (p) => {
+
+	// Fetch: Gets certain types of data.
+	ws.on("fetch", (p) => {
 		if(!p.type || typeof p.type !== "integer") return ws.send(JSON.stringify({
-			code: 4,
+			code: 5,
 			event: "invalid",
 			payload: {
 				reason: "invalidType",
@@ -224,7 +218,7 @@ wss.on("connection", function(ws, request) {
 					ws.send(JSON.stringify({
 						event: "fetch",
 						payload: {
-							user: ...user
+							user
 						}
 					}))
 				})
@@ -232,7 +226,7 @@ wss.on("connection", function(ws, request) {
 
 			default:
 				ws.send(JSON.stringify({
-					code: 4,
+					code: 5,
 					event: "invalid",
 					payload: {
 						reason: "notAType",
@@ -242,7 +236,10 @@ wss.on("connection", function(ws, request) {
 			break;
 		}
 	})
-	.on("invalid", (i) => {
+
+	// Invalid: More or less a self emitted event (check the eventHandle function below).
+	// Used to tell the client they sent missing or invalid data.
+	ws.on("invalid", (i) => {
 		switch(i.code) {
 			case 0:
 				ws.send(JSON.stringify({
@@ -268,16 +265,28 @@ wss.on("connection", function(ws, request) {
 		}
 	})
 
-	ws.on("close", (e) => {
+	// Close: When a ws connection has been closed (or simply, they disconnected).
+	ws.on("close", () => {
 		let sessionIndex = sessions.findIndex(s => s.sessionID == ws.sessionID)
-		let pretokenIndex = pretokens.findIndex(t => t == ws.pretoken)
-		if(pretokenIndex !== -1) pretokens.splice(pretokenIndex, 1)[0]
 		if (sessionIndex === -1) return console.log("A user has disconnected.")
 		let session = sessions.splice(sessionIndex, 1)[0]
 		console.log(`${session.username}#${session.tag} has disconnected.`)
 	})
+
+	function eventHandle(data) {
+		try {
+			const { event, payload } = JSON.parse(data)
+			if(!event || !payload) return this.emit("invalid", {code: 1})
+			return ws.emit(event, payload)
+		} catch(e) {
+			console.log(e)
+			return ws.emit("invalid", {code: 0})
+		}
+	}
 })
 
+// Sets upthe server to listen to our port.
+// Why a HTTP server? For certain routes for later (like an easy way of getting the IP for ws connect)
 server.listen(Config.port, () => {
 	const userTable = UserDB.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'users';").get()
 	if (!userTable["count(*)"]) {
@@ -290,14 +299,3 @@ server.listen(Config.port, () => {
 
 	console.log("Bongo Chat Server is up!")
 })
-
-function eventHandle(data) {
-	try {
-		const { event, payload } = JSON.parse(data)
-		if(!event || !payload) return this.emit("invalid", {code: 1})
-		return this.emit(event, payload)
-	} catch(e) {
-		console.log(e)
-		return this.emit("invalid", {code: 0})
-	}
-}
