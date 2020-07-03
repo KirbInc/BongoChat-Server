@@ -21,7 +21,7 @@ As said above, you will not always receive a `code` so don't rely on that for ha
 
 # Connecting
 By default, Bongo Chat servers listen for websocket connections on the port `8080` so if you want to connect you can use the server's IP/domain with port `8080` and the `ws` protocol. Here is an example of a URL to connect: `ws://localhost:8080`  
-Once connected, you should send a `welcome` event with an empty `payload`.  
+Once connected, you should receive a `welcome` event with an empty `payload`.  
 
 ### Example Welcome
 ```json
@@ -31,26 +31,16 @@ Once connected, you should send a `welcome` event with an empty `payload`.
 }
 ```  
 
-Then the client should automatically receive the `hello` event with a `pretoken`. Servers here can setup some kind of a checkpoint here if they wish.  
-
-### Example Hello
-```json
-{
-	"event": "hello",
-	"payload": {
-		"pretoken": "20b8e1b54a4f4fb66c6a3bba59b42cbd"
-	}
-}
-```  
+Then the client should [`identify`](#identifying)  
 
 ## Identifying
-Next, the client should `identify`. Here you can choose whether to register or login. If logging in, the client should send the `identify` data with the login data. An example is shown here:  
+Here you can choose whether to register or login. If logging in, the client should send the `identify` data with the login data. An example is shown here:  
+
 ### Example Identify for Login
 ```json
 {
 	"event": "identify",
 	"payload": {
-		"pretoken": "20b8e1b54a4f4fb66c6a3bba59b42cbd",
 		"accountName": "bongocat",
 		"password": "bongobongobongo"
 	}
@@ -62,7 +52,6 @@ And for registration:
 {
 	"event": "identify",
 	"payload": {
-		"pretoken": "20b8e1b54a4f4fb66c6a3bba59b42cbd",
 		"accountName": "bongocat",
 		"username": "Bongo Cat",
 		"tag": "cat",
@@ -70,9 +59,9 @@ And for registration:
 	}
 }
 ``` 
-Yes, `tag` can be 1-4 alphanumeric characters.
+Yes, `tag` can be any 1-4 alphanumeric characters.
 
-If registered or logged in was successful, you will get a [`ready`](#ready) event with the user's data.  
+If registered or logging in was successful, you will get a [`ready`](#ready) event with the user's data.  
 
 # Errors, Codes and Request Types
 Whenever **you** (the client) do something that doesn't make sense or isn't valid (say, you don't send payload data, or the required data for a specific event) you will get an `invalid` event sent back.  
@@ -87,16 +76,7 @@ Each type meaning can be based on the event, so look at them each to find out wh
 All events, sent and received, should be camelCase.  
 
 ### Welcome
-Used to get `hello` from the server, saying you want to initialize identification.  
-
-
-### Hello
-Confirms the server heard your request to be `welcome`d and sends the pretoken.  
-
-#### Hello Structure
-| Field    | Type           | Description                    |
-|----------|----------------|--------------------------------|
-| pretoken | string         | pretoken to use with identify  |
+Used to confirm the client has connected. You should initialize identification.  
 
 ### Identify
 Used to login (or register) a user.
@@ -104,7 +84,6 @@ Used to login (or register) a user.
 #### Identify Structure
 | Field       | Type   | Description                                |
 |-------------|--------|--------------------------------------------|
-| pretoken    | string | pretoken to use with identify              |
 | accountName | string | the user's account name                    |
 | username?   | string | user's desired username (for registration) |
 | tag?        | string | user's desired tag (for registration)      |
@@ -123,7 +102,7 @@ Sends user information.
 |-------------|---------|--------------------------------------------|
 | sessionID   | string  | session id                                 |  
 | id          | integer | snowflake id of the user                   |  
-| username    | string  | user's  username                           |
+| username    | string  | user's username                            |
 | tag         | string  | user's tag                                 |  
 
 ### Invalid
@@ -142,10 +121,27 @@ Sent when the client sends invalid, incorrect or insufficient data.
 ```  
 
 #### Invalid Structure
-TODOC  
+| Field       | Type    | Description                                |
+|-------------|---------|--------------------------------------------|
+| code        | integer | [invalid code](#invalid-codes)             |  
+| payload     | object  | payload data                               |  
+
+Payload data:
+| Field       | Type    | Description                                      |
+|-------------|---------|--------------------------------------------------|
+| reason      | string  | reason to the event                              |
+| message     | string  | detailed message saying why you received invalid |  
 
 #### Invalid Codes
-TODOC
+Codes are used to know which event triggered the invalid event response. You should look at both the code and message to inform a user to why this happened.
+| Code        | Description                                          |
+|-------------|------------------------------------------------------|
+| 0           | data sent was not json                               |  
+| 1           | the payload or event name was missing                |  
+| 2           | identify event (registration)                        |  
+| 3           | identify event                                       |  
+| 4           | messageCreate event                                  | 
+| 5           | fetch event                                          |   
 
 ### Message Create
 A message sent in the server. The payload is a [`message create`](Resources/Message.md#message-create-structure) structure.  
