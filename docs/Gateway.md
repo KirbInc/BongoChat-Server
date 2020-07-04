@@ -20,7 +20,14 @@ As said above, you will not always receive a `code` so don't rely on that for ha
 `code` is only sent for the `invalid` event.
 
 # Connecting
-By default, Bongo Chat servers listen for websocket connections on the port `8080` so if you want to connect you can use the server's IP/domain with port `8080` and the `ws` protocol. Here is an example of a URL to connect: `ws://localhost:8080`  
+If you can find a server's IP/domain, you can easily make a GET request to `/url`. It should send back JSON with the field `url`. Example:
+```json
+{
+	"url": "ws://example.com:8080"
+}
+```  
+You can then use this URL to connect via websocket.  
+
 Once connected, you should receive a `welcome` event with an empty `payload`.  
 
 ### Example Welcome

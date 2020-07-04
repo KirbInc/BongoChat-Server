@@ -31,7 +31,7 @@ const User = new Utils.userHandle(UserDB)
 const server = http.createServer()
 const wss = new WebSocket.Server({
 	clientTracking: true,
-	server
+	port: Config.port
 })
 const flake = new Flake({
 	timeOffset: (2020 - 1970) * 31536000 * 1000 + (31536000 * 400)
@@ -287,7 +287,7 @@ wss.on("connection", (ws) => {
 
 // Sets upthe server to listen to our port.
 // Why a HTTP server? For certain routes for later (like an easy way of getting the IP for ws connect)
-server.listen(Config.port, () => {
+server.listen(80, () => {
 	const userTable = UserDB.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'users';").get()
 	if (!userTable["count(*)"]) {
 		UserDB.prepare("CREATE TABLE users (id INTEGER PRIMARY KEY, accountName TEXT, username TEXT, tag TEXT, passwordHash TEXT);").run();
@@ -298,4 +298,16 @@ server.listen(Config.port, () => {
 	}
 
 	console.log("Bongo Chat Server is up!")
+})
+
+// Event that handles HTTP requests.
+server.on("request", (req, res) => {
+	// Sends the URL to connect via ws.
+	if(req.url === "/url" && req.method === "GET") {
+		res.writeHead(200, { "Content-Type": "application/json"})
+		return res.end(JSON.stringify({url: `ws://${req.headers.host}:${Config.port}`}))
+	}
+	// Sends "Hello, world!" to any other route.
+	res.writeHead(200)
+	res.end("Hello, world!")
 })
