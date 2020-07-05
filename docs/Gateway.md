@@ -8,7 +8,7 @@ To actually send messages (after you [identify](#identifying)), see the [Resourc
 | event   | string         | the name of the event |
 | payload | any json value | event data            |  
 
-\* `code` is only sent to the client if the `event` is `invalid` to know which data sent to the server caused it.
+\* `code` is only sent to the client if the `event` is `invalid` or `method` to know which data sent to the server caused it.
 
 ## Sending Data
 Data sent *should* be valid JSON if parsed, or the server will send an `invalid` event with code `0`.  
@@ -17,7 +17,7 @@ They should also have all fields defined in the [data structure](#data-structure
 ## Receiving Data
 As a client, receiving data is fairly simple. The server always sends stringified JSON that you should be able to parse.  
 As said above, you will not always receive a `code` so don't rely on that for handling events. Instead, just look at `event` for the name.  
-`code` is only sent for the `invalid` event.
+`code` is only sent for `invalid` and `method` events.
 
 # Connecting
 If you can find a server's IP/domain, you can easily make a GET request to `/url`. It should send back JSON with the field `url`. Example:
