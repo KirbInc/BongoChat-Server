@@ -115,6 +115,20 @@ wss.on("connection", (ws) => {
 						}
 					}
 				}))
+				wss.clients.forEach(c => {
+					if(!c.sessionID) return;
+					if(c.readyState === WebSocket.OPEN) c.send(JSON.stringify({
+						event: "userJoin",
+						payload: {
+							user: {
+								id: parseInt(id),
+								username,
+								tag,
+								unique: true
+							}
+						}
+					}))
+				})
 			})
 		} else { // Login portion.
 			let { accountName, password } = p
@@ -148,6 +162,20 @@ wss.on("connection", (ws) => {
 							}
 						}
 					}))
+					wss.clients.forEach(c => {
+						if(!c.sessionID) return;
+						if(c.readyState === WebSocket.OPEN) c.send(JSON.stringify({
+							event: "userJoin",
+							payload: {
+								user: {
+									id: parseInt(id),
+									username,
+									tag,
+									unique: false
+								}
+							}
+						}))
+					})
 				} else {
 					ws.send(JSON.stringify({
 						code: 3,
@@ -271,12 +299,25 @@ wss.on("connection", (ws) => {
 		if (sessionIndex === -1) return console.log("A user has disconnected.")
 		let session = sessions.splice(sessionIndex, 1)[0]
 		console.log(`${session.username}#${session.tag} has disconnected.`)
+		wss.clients.forEach(c => {
+			if(!c.sessionID) return;
+			if(c.readyState === WebSocket.OPEN) c.send(JSON.stringify({
+				event: "userLeave",
+				payload: {
+					user: {
+						id: session.id,
+						username: session.username,
+						tag: session.tag
+					}
+				}
+			}))
+		})
 	})
 
 	function eventHandle(data) {
 		try {
 			const { event, payload } = JSON.parse(data)
-			if(!event || !payload) return this.emit("invalid", {code: 1})
+			if(!event || !payload) return ws.emit("invalid", {code: 1})
 			return ws.emit(event, payload)
 		} catch(e) {
 			console.log(e)
@@ -285,7 +326,7 @@ wss.on("connection", (ws) => {
 	}
 })
 
-// Sets upthe server to listen to our port.
+// Sets up the server to listen to our port.
 // Why a HTTP server? For certain routes for later (like an easy way of getting the IP for ws connect)
 server.listen(80, () => {
 	const userTable = UserDB.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'users';").get()
