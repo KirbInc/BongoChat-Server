@@ -24,7 +24,7 @@ const flake = new FlakeId({
 
 class userHandle {
 	constructor(Database) {
-		this.Database = Database
+		this.Database = Database;
 	}
 
 	login(accountName, password) {
